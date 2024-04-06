@@ -1,0 +1,8 @@
+[package]
+name = "Data_Crates"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+datafusion = "37.0.0"
+arrow = "51.0.0"
