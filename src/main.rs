@@ -1,32 +1,55 @@
+// minimal example with ballista
 
-//
+use ballista::prelude::{BallistaConfig, BallistaContext, Result};
+use datafusion::execution::options::CsvReadOptions;
+use tokio;
 
-use arrow;
-use datafusion;
-use arrow:array::{BinaryArray, Float64Arrat, UInt16Array, ListArray};
-use arrow:datatypes::{DataType, Field, Schema};
+#[tokio::main]
+async fn main() -> Result<()> {
 
-use datafusion::execution::context::ExecutionContext;
+    // Config Ballista Session
+    let ballista_config = BallistaConfig::builder()
+        .set("ballista.shuffle.partitions", "1")
+        .build()?;
+    
+    // Create a new session
+    let ctx_session = BallistaContext::standalone(&ballista_config, 2).await?;
 
-fn main() {
+    // Read data into the created session, from a csv
+    let csv_file_path = "../data/uniswapv3_data.csv";
+    ctx_session.register_csv("uniswapv3", csv_file_path, CsvReadOptions::new().has_header(true))
+                    .await?;
 
-    // Create a local execution context
-    let mut ctx = ExecutionContext::new();
+    // Useful and basic operations in sql
+    
+    // 0: Show the current session config options
+    // let sql_0 = ctx_session
+    //    .sql("SELECT * FROM information_schema.tables")
+    //    .await?;
 
-    // Define a schema for the data read from the csv
-    let schema = Arc::new(Schema::new(vec![
-        Field::new("PassengerID", DataType::Int32, false),
-        Field::new("Survived", DataType::Int32, false),
-        Field::new("Pclass", DataType::Int32, false),
-        Field::new("Name", DataType::Utf8, false),
-        Field::new("Sex", DataType::Utf8, false),
-        Field::new("Age", DataType::Int32, true),
-        Field::new("SibSp", DataType::Int32, false),
-        Field::new("Parch", DataType::Int32, false),
-        Field::new("Ticket", DataType::Utf8, false),
-        Field::new("Fare", DataType::Float64, false), 
-        Field::new("Cabin", DataType::Utf8, true),
-        Field::new("Embarked", DataType::Utf8, false),
-    ]));
+    // 1: Get the columns names
+    let sql_1 = ctx_session
+        .sql("show columns from uniswapv3")
+        .await?;
+
+    // An example of a filter operation:
+    // Using SQL: 
+    // let sql_filtered_data = ctx_session
+    //    .sql("SELECT Token0, Token1
+    //          FROM uniswapv3
+    //          WHERE VolumeUSD >= 1000
+    //       ")
+    //    .await?;
+    
+    // Collect the results 
+    let resulted_data = sql_1.collect().await?;
+
+    // Visualize results
+    for batch in &resulted_data {
+        println!("{:?}", batch);
+    }
+
+    Ok(())
 
 }
+
